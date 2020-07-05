@@ -21,15 +21,13 @@ app.layout = html.Div(children=[
     Output(component_id='output-graph', component_property='children'),
     [Input(component_id='input', component_property='value')])
 def update_graph(input_data):
-    # start = datetime.datetime(2015, 1, 1)
-    # end = datetime.datetime.now()
     tseries = pd.read_csv("tseries.csv")
 
     return dcc.Graph(
         id='example-graph',
         figure={
             'data': [
-                {'x': tseries.Name, 'y': tseries.M, 'type': 'line', 'name': input_data},
+                {'x': tseries.Name, 'y': tseries[input_data], 'type': 'line', 'name': input_data},
 
             ],
             'layout': {
@@ -41,6 +39,5 @@ def update_graph(input_data):
 
 
 if __name__ == '__main__':
-    # tseries = pd.read_csv("tseries.csv")
     transform()
     app.run_server(debug=True)

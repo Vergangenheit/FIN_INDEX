@@ -1,18 +1,6 @@
 import pandas as pd
 import numpy as np
 
-# read ts file
-# tseries = pd.read_excel("TimeSeriesData_Apr15-Apr20.xlsx")
-#
-# stocks = ["APPLE", "ALLIANZ", "GENERAL ELECTRIC", "LLOYDS BANKING GROUP", "BT GROUP", "DEUTSCHE POST",
-#           "JOHNSON & JOHNSON"]
-#
-# # read xrates file
-# xrates = pd.read_excel("FX_EUR_GBP.xlsx")
-#
-# stocks_to_xc = {"APPLE": "USD", "ALLIANZ": "EUR", "GENERAL ELECTRIC": "USD", "LLOYDS BANKING GROUP": "GBP",
-#                 "BT GROUP": "GBP", "DEUTSCHE POST": "EUR", "JOHNSON & JOHNSON": "USD"}
-
 
 def reduce_xrates(xrates: pd.DataFrame, tseries: pd.DataFrame):
     xrates = xrates.copy()
@@ -81,6 +69,57 @@ def market_cap(df: pd.DataFrame, stocks: list):
 
     return df
 
+# DUPLICATE AND SHIFT COLUMNS TO OBTAIN COMPARISON at t+1
+def shift(df:pd.DataFrame, stocks:list):
+    df = df.copy()
+    for stock in stocks:
+        stock_cols = [col for col in df.columns if stock in col]
+        for c in stock_cols:
+            df[str(c+"_t-1")] = df[c].shift(1)
+
+    return df
+
+# calculate deltaMC
+def deltamc(df: pd.DataFrame, stocks: list):
+    df = df.copy()
+    for stock in stocks:
+        col = []
+        col.append(stock)
+        col.append(str(stock + " - NUMBER OF SHARES"))
+        col.append(str(stock + " - FREE FLOAT NOSH"))
+        col.append(str(stock + "_X"))
+        col.append(str(stock + "_t-1"))
+        col.append(str(stock + " - NUMBER OF SHARES" + "_t-1"))
+        col.append(str(stock + " - FREE FLOAT NOSH" + "_t-1"))
+        col.append(str(stock + "_X" + "_t-1"))
+
+        df[str(stock + "_deltaMC")] = df[col[0]] * df[col[1]] * df[col[2]] * df[col[3]] - df[col[4]] * df[col[5]] * df[
+            col[6]] * df[col[7]]
+
+    df["deltaMC"] = df.iloc[:, -1] + df.iloc[:, -2] + df.iloc[:, -3] + df.iloc[:, -4] + df.iloc[:, -5] + df.iloc[:,
+                                                                                                         -6] + df.iloc[
+                                                                                                               :, -7]
+
+    df = df.drop(df.iloc[:, -8:-1], axis=1)
+
+    return df
+
+def drop_duplicates(df:pd.DataFrame):
+    df = df.copy()
+    df = df.drop(df.iloc[:,-29:-1],axis=1)
+
+    return df
+
+# calculation of final index
+def final_index(df: pd.DataFrame):
+    df = df.copy()
+    # shift deltaMC backwards
+    df["deltaMC"] = df["deltaMC"].shift(-1)
+    df["INDEX"] = (df["M"]*df["M"]) / (df["M"]+ df["deltaMC"])
+
+    return df
+
+
 
 def transform():
     # read ts file
@@ -100,11 +139,13 @@ def transform():
     tseries = reorder(tseries, stocks)
     tseries = transf_ff(tseries)
     tseries = market_cap(tseries, stocks)
+    tseries = shift(tseries, stocks)
+    tseries = deltamc(tseries, stocks)
+    tseries = drop_duplicates(tseries)
+    tseries = final_index(tseries)
 
     tseries.to_csv("tseries.csv")
 
 
 if __name__ == "__main__":
     transform()
-    # tseries.to_csv("tseries.csv")
-    # print(tseries.head())
