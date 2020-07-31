@@ -69,15 +69,17 @@ def market_cap(df: pd.DataFrame, stocks: list):
 
     return df
 
+
 # DUPLICATE AND SHIFT COLUMNS TO OBTAIN COMPARISON at t+1
-def shift(df:pd.DataFrame, stocks:list):
+def shift(df: pd.DataFrame, stocks: list):
     df = df.copy()
     for stock in stocks:
         stock_cols = [col for col in df.columns if stock in col]
         for c in stock_cols:
-            df[str(c+"_t-1")] = df[c].shift(1)
+            df[str(c + "_t-1")] = df[c].shift(1)
 
     return df
+
 
 # calculate deltaMC
 def deltamc(df: pd.DataFrame, stocks: list):
@@ -101,24 +103,42 @@ def deltamc(df: pd.DataFrame, stocks: list):
                                                                                                                :, -7]
 
     df = df.drop(df.iloc[:, -8:-1], axis=1)
+    df = df.drop(df.iloc[:, -29:-1], axis=1)
 
     return df
 
-def drop_duplicates(df:pd.DataFrame):
-    df = df.copy()
-    df = df.drop(df.iloc[:,-29:-1],axis=1)
 
-    return df
+# def drop_duplicates(df:pd.DataFrame):
+#     df = df.copy()
+#     df = df.drop(df.iloc[:,-29:-1],axis=1)
+#
+#     return df
 
 # calculation of final index
-def final_index(df: pd.DataFrame):
+
+def calculate_divisor(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    # shift deltaMC backwards
-    df["deltaMC"] = df["deltaMC"].shift(-1)
-    df["INDEX"] = (df["M"]*df["M"]) / (df["M"]+ df["deltaMC"])
+    # shift FF Market capitalization(M)
+    df['M_t-1'] = df['M'].shift(1)
+    # initialize D
+    df['D'] = np.nan
+    df.loc[0, 'D'] = 1
+    df['D_t-1'] = df['D'].shift(1)
+    for i in df.index:
+        if i + 1 <= df.index.max():
+            df.loc[i + 1, 'D'] = df.loc[i + 1, 'D_t-1'] * (
+                        (df.loc[i + 1, 'M_t-1'] + df.loc[i + 1, 'deltaMC']) / df.loc[i + 1, 'M_t-1'])
+            df['D_t-1'] = df['D'].shift(1)
 
     return df
 
+
+def final_index(df: pd.DataFrame)-> pd.DataFrame:
+    df = df.copy()
+    df["INDEX"] = df["M"] / df["D"]
+    df = df.drop(['M_t-1','D_t-1'], axis=1)
+
+    return df
 
 
 def transform():
@@ -141,7 +161,7 @@ def transform():
     tseries = market_cap(tseries, stocks)
     tseries = shift(tseries, stocks)
     tseries = deltamc(tseries, stocks)
-    tseries = drop_duplicates(tseries)
+    tseries = calculate_divisor(tseries)
     tseries = final_index(tseries)
 
     tseries.to_csv("tseries.csv")
