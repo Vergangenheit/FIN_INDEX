@@ -1,7 +1,7 @@
 pandas==0.25.3
 numpy==1.16.1
 dash==0.21.1
-dash_core_components==0.23.0
+dash_core_components==2.0.0
 dash_html_components==0.11.0
 dash_renderer==0.13.0
 xlrd==1.1.0
